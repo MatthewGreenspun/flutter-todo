@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import 'package:todo/widgets/todo_page.dart';
 import "./models/todo.dart";
 
 void main() {
@@ -50,7 +51,10 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-  void showEditModal() {
+  void showEditModal([int? idx]) {
+    if (idx != null) {
+      _selectedDate = _todos[idx].deadline;
+    }
     showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -95,7 +99,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                     .then((value) {
                                   if (value != null) {
                                     setBottomSheetState(() {
-                                      print("value: $value");
                                       _selectedDate = DateTime(
                                           value.year,
                                           value.month,
@@ -123,7 +126,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                         initialTime: TimeOfDay.now())
                                     .then((value) {
                                   if (value != null) {
-                                    print(value);
                                     setBottomSheetState(() {
                                       _selectedDate = DateTime(
                                         _selectedDate.year,
@@ -143,11 +145,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     ElevatedButton(
                         onPressed: () {
                           ToDo newTodo = ToDo(_currId++, _titleController.text,
-                              _detailsController.text, false);
+                              _detailsController.text, false, _selectedDate);
                           setState(() {
-                            _todos.add(newTodo);
+                            if (idx != null) {
+                              _todos[idx] = newTodo;
+                            } else {
+                              _todos.add(newTodo);
+                            }
                             _titleController.clear();
                             _detailsController.clear();
+                            _selectedDate =
+                                DateTime.now().add(const Duration(hours: 2));
                           });
                           Navigator.pop(context);
                         },
@@ -172,53 +180,73 @@ class _MyHomePageState extends State<MyHomePage> {
           scrollDirection: Axis.vertical,
           children: <Widget>[
             Column(
-              children: _todos
-                  .map((todo) => GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 46, 46, 46),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 4, horizontal: 0),
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                  value: todo.done,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      for (int i = 0; i < _todos.length; i++) {
-                                        if (_todos[i].id == todo.id) {
-                                          _todos[i].done = value!;
-                                        }
+              children: _todos.asMap().entries.map<Widget>((entry) {
+                final todo = entry.value;
+                return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => TodoPage(todo: todo)));
+                    },
+                    child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(255, 46, 46, 46),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 4, horizontal: 0),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                                value: todo.done,
+                                onChanged: (value) {
+                                  setState(() {
+                                    for (int i = 0; i < _todos.length; i++) {
+                                      if (_todos[i].id == todo.id) {
+                                        _todos[i].done = value!;
                                       }
-                                    });
-                                  }),
-                              Expanded(
-                                  child: Text(
-                                todo.title,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 20, color: Colors.white),
-                              )),
-                              IconButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      for (int i = 0; i < _todos.length; i++) {
-                                        if (_todos[i].id == todo.id) {
-                                          _todos.removeAt(i);
-                                        }
+                                    }
+                                  });
+                                }),
+                            Expanded(
+                                child: Text(
+                              todo.title,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 20, color: Colors.white),
+                            )),
+                            Text(
+                              '${DateFormat.yMd('en_US').add_jm().format(todo.deadline)} ',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            IconButton(
+                                onPressed: () {
+                                  _titleController.text = todo.title;
+                                  _detailsController.text = todo.details;
+                                  showEditModal(entry.key);
+                                },
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.white,
+                                )),
+                            IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    for (int i = 0; i < _todos.length; i++) {
+                                      if (_todos[i].id == todo.id) {
+                                        _todos.removeAt(i);
                                       }
-                                    });
-                                  },
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.white,
-                                  ))
-                            ],
-                          ))))
-                  .toList(),
+                                    }
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ))
+                          ],
+                        )));
+              }).toList(),
             )
           ],
         ),
@@ -226,27 +254,11 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
           onPressed: () {
+            _titleController.clear();
+            _detailsController.clear();
+            _selectedDate = DateTime.now().add(const Duration(hours: 2));
             showEditModal();
           }),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color.fromARGB(255, 46, 46, 46),
-        currentIndex: _selectedIdx,
-        onTap: (value) => setState(() {
-          _selectedIdx = value;
-        }),
-        selectedItemColor: Theme.of(context).textSelectionTheme.selectionColor,
-        unselectedItemColor: const Color.fromARGB(255, 172, 172, 172),
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(
-                Icons.home,
-              ),
-              label: "Home"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month), label: "Calandar"),
-        ],
-      ),
     );
   }
 }
